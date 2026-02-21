@@ -13,6 +13,8 @@ services:
   backend:
     build:
       context: .
+    extra_hosts:
+      - midominio.local:host-gateway
     environment:
       - CURRENT_STAGE=2
       - USE_STATIC_DASHBOARD=false
