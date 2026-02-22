@@ -1,0 +1,74 @@
+name: Deploy Docker App
+
+on:
+  repository_dispatch:
+    types: [trigger-from-terraform] 
+# variable de entorno para las credenciales AWS
+env:
+  AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
+  AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+  AWS_DEFAULT_REGION: eu-west-1
+
+jobs:
+  build-and-deploy:
+    runs-on: [self-hosted, Linux]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Verificación de que Docker Compose está instalado
+      - name: Verify Docker Compose
+        run: |
+          docker compose version || { echo "Docker Compose no está instalado"; exit 1; }
+          
+    # LIMPIEZA completa: contenedores + volúmenes
+      - name: Parar contenedores si existen (limpieza completa)
+        run: docker compose down -v || true
+
+      - name: Pull de imágenes (última versión)
+        run: docker compose pull
+
+      # Construir la imagen del backend (el punto '.' del context)
+      - name: Build Backend Image
+        run: docker compose build backend
+
+      # Levantar los servicios
+      - name: Docker Compose Up
+        env:
+          # Puedes sobrescribir variables aquí si es necesario
+          AWS_ENDPOINT_URL: "http://midominio.local"
+        run: |
+          echo "Desplegando stack: Nginx + Backend..."
+          docker compose up -d --remove-orphans
+
+      
+      #Verificar script insercion datos en DynamoDB
+      - name: check script insertar datos en DynamoDB
+        run: |
+          test -f script/init.sh || { echo "Falta script de insercicion de datos en tablas"; exit 1; }
+          chmod +x script/init.sh
+      
+      # Insertar datos en tablas DynamoDB
+      - name: insert data in DynamoDB
+        env:
+          AWS_ENDPOINT_URL: "http://midominio.local"
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ env.AWS_DEFAULT_REGION }}
+        run: |
+          echo "Ejecutando script de inserción de datos en DynamoDB..."
+          ./script/init.sh
+        
+      # check status final
+      - name: Health Check
+        run: |
+          echo "Esperando 10s para el arranque definitivo..."
+          sleep 10
+          docker compose ps
+          # El -sSf hace que el comando falle si el backend da un error (ej: 500)
+          curl -sSf http://localhost:8080 > /dev/null || { echo "Error en la App"; exit 1; }- name: Health Check
+        
+
+
+    
