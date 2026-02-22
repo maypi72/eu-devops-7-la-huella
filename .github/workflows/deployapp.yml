@@ -67,7 +67,7 @@ jobs:
           sleep 10
           docker compose ps
           # El -sSf hace que el comando falle si el backend da un error (ej: 500)
-          curl -sSf http://localhost:8080 > /dev/null || { echo "Error en la App"; exit 1; }- name: Health Check
+          curl -sSf http://localhost:8080 > /dev/null || { echo "Error en la App"; exit 1; }
         
 
 
