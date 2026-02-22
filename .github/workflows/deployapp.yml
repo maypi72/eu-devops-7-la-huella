@@ -2,7 +2,7 @@ name: Deploy Docker App
 
 on:
   repository_dispatch:
-    types: [trigger-from-terraform] 
+    types: [activar-desde-localstacktf] 
 # variable de entorno para las credenciales AWS
 env:
   AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
